@@ -1,0 +1,20 @@
+{
+  "name": "arduino-time-display",
+  "version": "1.0.0",
+  "description": "Displays time/calendar info on arduino",
+  "main": "index.js",
+  "author": "Henk te Sligte <htesligte@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "adal-node": "^0.2.1",
+    "axios": "^0.19.2",
+    "delay": "^4.3.0",
+    "dotenv": "^8.2.0",
+    "flatted": "^2.0.2",
+    "moment-timezone": "^0.5.31",
+    "node-localstorage": "^2.1.6",
+    "querystring": "^0.2.0",
+    "serialport": "^9.0.0",
+    "util": "^0.12.3"
+  }
+}
