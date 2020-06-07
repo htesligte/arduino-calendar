@@ -4,22 +4,52 @@ const Usb = require('./Usb');
 const delay = require('delay');
 const Calendar = require('./Calendar');
 
+let meetings = [];
+
 const main = async () => {    
+    let port = await waitForUsb();
+    meetings = await Calendar.getMeetings();
+    // update these meetings every minute
+    setInterval(async () => {
+        meetings = await Calendar.getMeetings();
+        console.log("Updated meetings");
+    }, 60000);
+
     // get times
-    const port = await Usb.open();
     do {
         const times = getTimeStrings();
-        const meetingStrings = await getNextMeetingString();
+        const meetingStrings = await getNextMeetingString(meetings);
         const line1 = `${times[0]}  ${times[1]}  ${times[2]}`;
         const line2 = `${meetingStrings[0]}  ${meetingStrings[1]}`;
-        
-        await Usb.write(port, `${line1}\n${line2}\n`);
+        try {
+            await Usb.write(port, `${line1}\n${line2}\n`);
+            console.log("Updated time");
+        } catch (error) {
+            console.error(error);
+        }        
 
-        await delay(60000); // sleep for one minute
+        await delay(1000); // sleep for one second
     } while (true);
     await Usb.close();    
     return;
 }
+
+const waitForUsb = async () => {
+    let port = null;
+
+    while(true) {
+        try {
+            port = await Usb.open();
+            break;
+        } catch (error) {
+            console.log(error);
+            await delay(1000);
+        }
+    }
+
+    return port;
+}
+
 
 const getTimeStrings = () => {
     const timezones = [
@@ -37,11 +67,11 @@ const getTimeStrings = () => {
     return timeStrings;
 }
 
-const getNextMeetingString = async () => {
-    const meetingInfo = await Calendar.getNextMeetingInfo();
+const getNextMeetingString = async (meetings) => {
+    const meetingInfo = await Calendar.getNextMeetingInfo(await Calendar.getSchedule(meetings));
     return [
         meetingInfo.nextMeeting.substr(0, 12).padEnd(12),
-        String(meetingInfo.minutesLeft).padStart(2, '0')
+        String(meetingInfo.timeLeft).padStart(2, '0')
     ];
 }
 

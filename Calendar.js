@@ -2,7 +2,7 @@ const Token = require('./Token');
 const axios = require('axios');
 const moment = require('moment');
 
-const getSchedule = async () => {
+const getMeetings = async() => {
     const token = await Token.getToken();
     const headers = {headers: {"Authorization": `Bearer ${token}`}};
     const start_datetime = moment().toISOString();
@@ -11,10 +11,28 @@ const getSchedule = async () => {
     const url = `https://graph.microsoft.com/v1.0/me/calendar/calendarView?startDateTime=${start_datetime}&endDateTime=${end_datetime}`
 
     const eventsResponse = await axios.get(url, headers);
+
+    const meetings = eventsResponse.data.value;
+
+    meetings.sort((meeting1, meeting2) => {
+        const startDateTime1 = moment.utc(meeting1.start.dateTime);
+        const startDateTime2 = moment.utc(meeting2.start.dateTime);
+        if (startDateTime1 == startDateTime2) {
+            return 0;
+        }
+        return startDateTime1 < startDateTime2 ? -1 : 1;
+    });
+    return meetings;
+}
+
+const getSchedule = async (meetings) => {
     let currentMeeting = null;
     let nextMeeting = null;
     const now = moment();
-    for (const meeting of eventsResponse.data.value) {
+    for (const meeting of meetings) {
+        if (moment.utc(meeting.end.dateTime) < now) {
+            continue;
+        }
         if (meeting.subject === "Lunch") {
             continue;
         }
@@ -38,18 +56,22 @@ const getSchedule = async () => {
     };
 }
 
-const getNextMeetingInfo = async () => {
-    const meetings = await getSchedule();
-    let minutesLeft = -1;
+const getNextMeetingInfo = async (meetings) => {
+    let secondsLeft = -1;
     let meetingString = "Free";
     if (!meetings.nextMeeting && !meetings.currentMeeting) {
         meetingString = "Free";
-        minutesLeft = -1;
+        secondsLeft = -1;
     } else if (!meetings.currentMeeting) {
         // there is a meeting coming up and we have nothing on the schedule now
         const meetingTime = moment.utc(meetings.nextMeeting.start.dateTime);
-        minutesLeft = meetingTime.diff(moment(), "minutes");
+        secondsLeft = meetingTime.diff(moment(), "seconds");
         meetingString = meetings.nextMeeting.subject;
+    } else if (!meetings.nextMeeting) {
+        // we are in a meeting now but there is nothing after this
+        const meetingTime = moment.utc(meetings.currentMeeting.end.dateTime);
+        secondsLeft = meetingTime.diff(moment(), "seconds");
+        meetingString = "Free";
     } else {
         // we are in a meeting and there is something else planned next
         // show the amount of minutes until this one ends
@@ -59,32 +81,40 @@ const getNextMeetingInfo = async () => {
         if (startTime.toISOString() == endTime.toISOString()) {
             // back to back meeting, so it doesn't matter how many minutes we show
             meetingString = meetings.nextMeeting.subject;
-            minutesLeft = endTime.diff(moment(), "minutes");
+            secondsLeft = endTime.diff(moment(), "seconds");
         } else if (startTime < endTime) {
             // overlapping next meeting, show the amount of minutes until the next one 
-            minutesLeft = startTime.diff(moment(), "minutes");
+            secondsLeft = startTime.diff(moment(), "seconds");
             meetingString = `* ${meetings.nextMeeting.subject}`;
         } else if (startTime > endTime) {
             // there is some space between the end of the current meeting and the start 
             // of the next one. Show the amount of minutes until this one ends
-            minutesLeft = endTime.diff(moment(), "minutes");
+            secondsLeft = endTime.diff(moment(), "seconds");
             meetingString = "Free";
         }
     }
     
     // so we covered all scenarios
     // now format the strings to display them on the arduino
+    const minutesLeft = Math.ceil(secondsLeft / 60);
+    let timeLeft = "";
+
     if (minutesLeft > 59) {
-        minutesLeft = `${Math.floor(minutesLeft / 60)}h`;
-    } else if (minutesLeft < 0) {
-        minutesLeft = "--";
+        timeLeft = `${Math.ceil(minutesLeft / 60)}h`;
+    } else if (secondsLeft > 60) {
+        timeLeft = minutesLeft;
+    } else if (secondsLeft < 0) {
+        timeLeft = "--";
+    } else {
+        timeLeft = secondsLeft;
     }
 
     return {
         nextMeeting: meetingString,
-        minutesLeft: minutesLeft
+        timeLeft: timeLeft
     }
 }
 
 module.exports.getSchedule = getSchedule; 
 module.exports.getNextMeetingInfo = getNextMeetingInfo;
+module.exports.getMeetings = getMeetings;
