@@ -7,7 +7,7 @@
   "license": "MIT",
   "dependencies": {
     "adal-node": "^0.2.1",
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "delay": "^4.3.0",
     "dotenv": "^8.2.0",
     "flatted": "^2.0.2",
