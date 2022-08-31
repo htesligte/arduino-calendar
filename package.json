@@ -11,7 +11,7 @@
     "delay": "^4.3.0",
     "dotenv": "^8.2.0",
     "flatted": "^2.0.2",
-    "moment-timezone": "^0.5.31",
+    "moment-timezone": "^0.5.35",
     "node-localstorage": "^2.1.6",
     "querystring": "^0.2.0",
     "serialport": "^9.0.0",
